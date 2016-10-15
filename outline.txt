@@ -1,0 +1,37 @@
+Use pyglet setup to do this
+
+what does there need to be
+pyglet window set up
+fragment shader for displaying
+double buffer drawing
+  for accumulation
+  one is a HDR simple gets added to from the other
+  one draws frame by frame
+
+define material struct in both shader and python
+  then have a built in in python that converts
+  should be more like GPUPathTracer rather then RTIOW
+
+same deal with shapes
+  sphere
+  square
+  plane
+
+TODO: 
+  - check out what isotropic material even is
+  - then get basic diffuse shading in
+    - following RTIOW
+
+Basic features:
+  draw ground plane
+  draw spheres
+  choose where spheres are drawn from cpu
+  camera (cpu side)
+  ray traced lighting
+    - not analytic
+  accumulate color over frames
+
+
+Advanced Features:
+  - movement
+  - time counter (frame time)
