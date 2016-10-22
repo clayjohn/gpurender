@@ -60,11 +60,11 @@ struct Camera {
 
 uniform int NUM_OBJECTS;
 uniform int BVH_DEPTH;
-#define MAX_OBJECTS 256
+#define MAX_OBJECTS 16
 uniform Hitable hitables[MAX_OBJECTS];
 uniform Material materials[MAX_OBJECTS];
 uniform Camera camera;
-#define MAX_DEPTH 20
+#define MAX_DEPTH 10
 vec3 estack[MAX_DEPTH + 1];
 vec3 cstack[MAX_DEPTH + 1];
 
