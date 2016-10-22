@@ -12,20 +12,38 @@ class Camera:
     v = []
     radius = 1.0
 
+    lookfrom = None
+    lookat = None
+    vup = None
+    vfov = None
+    aspect = None
+    aperture = None
+    focus_dist = None
+
     def __init__(self, lookfrom, lookat, vup, vfov, aspect, aperture, focus_dist):
-        self.radius = aperture / 2
-        theta = vfov
+        self.lookfrom = lookfrom
+        self.lookat = lookat
+        self.vup = vup
+        self.vfov = vfov
+        self.aspect = aspect
+        self.aperture = aperture
+        self.focus_dist = focus_dist
+        self.update_view()
+
+    def update_view(self):
+        self.radius = self.aperture / 2
+        theta = self.vfov
         half_height = tan(theta/2)
-        half_width = half_height * aspect
-        self.origin = lookfrom
-        w = unit_vector([lookfrom[0]-lookat[0], lookfrom[1]-lookat[1], lookfrom[2]-lookat[2]])
-        u = unit_vector(cross(vup, w))
+        half_width = half_height * self.aspect
+        self.origin = self.lookfrom
+        w = unit_vector([self.lookfrom[0]-self.lookat[0], self.lookfrom[1]-self.lookat[1], self.lookfrom[2]-self.lookat[2]])
+        u = unit_vector(cross(self.vup, w))
         v = cross(w, u)
-        self.lower_left_corner = [self.origin[0]-half_width*focus_dist*u[0]-half_height*focus_dist*v[0]-focus_dist*w[0],
-                                  self.origin[1]-half_width*focus_dist*u[1]-half_height*focus_dist*v[1]-focus_dist*w[1],
-                                  self.origin[2]-half_width*focus_dist*u[2]-half_height*focus_dist*v[2]-focus_dist*w[2]]
-        self.horizontal = [2*half_width*focus_dist*u[0], 2*half_width*focus_dist*u[1], 2*half_width*focus_dist*u[2]]
-        self.vertical = [2*half_height*focus_dist*v[0], 2*half_height*focus_dist*v[1], 2*half_height*focus_dist*v[2]]
+        self.lower_left_corner = [self.origin[0]-half_width*self.focus_dist*u[0]-half_height*self.focus_dist*v[0]-self.focus_dist*w[0],
+                                  self.origin[1]-half_width*self.focus_dist*u[1]-half_height*self.focus_dist*v[1]-self.focus_dist*w[1],
+                                  self.origin[2]-half_width*self.focus_dist*u[2]-half_height*self.focus_dist*v[2]-self.focus_dist*w[2]]
+        self.horizontal = [2*half_width*self.focus_dist*u[0], 2*half_width*self.focus_dist*u[1], 2*half_width*self.focus_dist*u[2]]
+        self.vertical = [2*half_height*self.focus_dist*v[0], 2*half_height*self.focus_dist*v[1], 2*half_height*self.focus_dist*v[2]]
         self.w = w
         self.u = u
         self.v = v

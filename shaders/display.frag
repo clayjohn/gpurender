@@ -11,5 +11,6 @@ void main() {
   vec4 col = texture2D(scene, fragPos*0.5+0.5);
   col /= passes;
   col.rgb = pow(col.rgb, vec3(1.0/2.2));
+  col.a = 1.0;
   Color = col;
 }

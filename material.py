@@ -37,7 +37,7 @@ class Material:
         name = "materials["+str(i)+"].specular"
         pyglet.gl.glUniform3f(pyglet.gl.glGetUniformLocation(pn, ctypes.create_string_buffer(name.encode('ascii'))), self.specular[0], self.specular[1], self.specular[2])
         ##update emission color
-        name = "materials["+str(i)+"].emitted"
+        name = "materials["+str(i)+"].emission"
         pyglet.gl.glUniform3f(pyglet.gl.glGetUniformLocation(pn, ctypes.create_string_buffer(name.encode('ascii'))), self.emitted[0], self.emitted[1], self.emitted[2])
         ##update fuzz
         name = "materials["+str(i)+"].fuzz"
@@ -61,5 +61,12 @@ class Metal(Material):
 
 class Dialectric(Material):
     def __init__(self, ref):
-        super(Dialectric, self).__init__((0, 0, 0), (0, 0, 0), (0, 0, 0), ref)
+        super(Dialectric, self).__init__((1, 1, 1), (0, 0, 0), (0, 0, 0), ref)
         self.mat = 3
+
+class DiffuseLight(Material):
+    def __init__(self, color):
+        super(DiffuseLight, self).__init__((1, 0, 0), (0, 1, 0), color, 0.0)
+        self.mat = 4
+
+

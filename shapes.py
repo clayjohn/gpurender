@@ -8,7 +8,7 @@ class Hitable_list:
         #pass all objects to the shader
         for i in range(len(self.hitables)):
             self.hitables[i].update(i, pn)
-        pyglet.gl.glUniform1i(pyglet.gl.glGetUniformLocation(pn, ctypes.create_string_buffer("NUM_OBJECTS".encode('ascii'))), int(len(self.hitables)))
+            pyglet.gl.glUniform1i(pyglet.gl.glGetUniformLocation(pn, ctypes.create_string_buffer("NUM_OBJECTS".encode('ascii'))), int(len(self.hitables)))
 
     def add(self, shape):
         self.hitables.append(shape)
@@ -22,7 +22,6 @@ class Hitable:
     material = None
     def __init__(self, *args):
         #for now take three arrays for args
-        # TODO specify behaviour if less is passed. maybe is different per type
         if len(args) >= 1:
             self.position = args[0]
         else:
@@ -39,6 +38,9 @@ class Hitable:
             self.material = args[3]
         else:
             self.material = Lambertian((1.0, 0.5, 0.5))
+
+    def get_locations(self, i, pn):
+        pass
 
     def update(self, i, pn):
         ##update position
@@ -63,16 +65,22 @@ class Sphere(Hitable):
 
 class Cube(Hitable):
     def __init__(self, *args):
-        shape = 2
+        super(Cube, self).__init__(*args)
+        self.shape = 2
 
 
 class Plane(Hitable):
     def __init__(self, *args):
-        shape = 3
+        super(Plane, self).__init__(*args)
+        self.shape = 3
 
 
 class Triangle(Hitable):
     def __init__(self, *args):
-        shape = 4
+        super(Triangle, self).__init__(*args)
+        self.shape = 4
 
-
+class Disk(Hitable):
+    def __init__(self, *args):
+        super(Disk, self).__init__(*args)
+        self.shape = 5
