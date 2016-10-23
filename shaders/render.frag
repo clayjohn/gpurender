@@ -60,11 +60,11 @@ struct Camera {
 
 uniform int NUM_OBJECTS;
 uniform int BVH_DEPTH;
-#define MAX_OBJECTS 16
+const int MAX_OBJECTS = 10;
 uniform Hitable hitables[MAX_OBJECTS];
 uniform Material materials[MAX_OBJECTS];
 uniform Camera camera;
-#define MAX_DEPTH 10
+const int MAX_DEPTH = 5;
 vec3 estack[MAX_DEPTH + 1];
 vec3 cstack[MAX_DEPTH + 1];
 
@@ -130,6 +130,7 @@ bool hit_disk(Hitable h, Ray ray, float t_min, float t_max, inout Hit_record rec
     if (distance(pos, h.pos)>h.size) {
       return false;
     }
+
     if (t >= 0) {
       rec.t = t;
       rec.p = ray.pos + ray.dir*t;
@@ -148,14 +149,6 @@ bool hit_plane(Hitable h, Ray ray, float t_min, float t_max, inout Hit_record re
     if (t<t_min || t>t_max) {
       return false;
     }
-    vec3 pos = ray.pos + ray.dir*t;
-    vec3 n = normalize(h.dir);
-    if ((pos.x - h.pos.x<(-h.size*n.x))||(pos.x>(h.pos.x+h.size*n.x))||
-        (pos.y - h.pos.y<(-h.size*n.y))||(pos.y>(h.pos.y+h.size*n.y))||
-        (pos.z - h.pos.z<(-h.size*n.z))||(pos.z>(h.pos.z+h.size*n.z))
-        ) {
-      return false;
-    }
     if (t >= 0) {
       rec.t = t;
       rec.p = ray.pos + ray.dir*t;
@@ -163,6 +156,11 @@ bool hit_plane(Hitable h, Ray ray, float t_min, float t_max, inout Hit_record re
       return true;
     }  // you might want to allow an epsilon here too
   }
+  return false;
+}
+
+bool hit_aabb(Hitable h, Ray ray, float t_min, float t_max, inout Hit_record rec) {
+  
   return false;
 }
 
@@ -293,7 +291,7 @@ bool color(inout Ray r, inout vec3 col, inout Hit_record rec, in int depth) {
     vec3 unit_direction = normalize(r.dir);
     float t = 0.5*(unit_direction.y+1.0);
     col *= mix(vec3(1.0), vec3(0.5, 0.7, 1.0), t);
-    //col *= 0.1;
+    col *= 0.0;
     return false;
   }
 }
@@ -336,6 +334,10 @@ void main() {
   vec3 col = cast_ray();
   //copy color from last frame
   vec3 lcol = texture2D(lastFrame, fragPos*0.5+0.5).xyz;
+
+  if (isnan(col).x) {
+    col = lcol;
+  }
   vec3 fcol = col+lcol;
   Color = vec4(fcol, 1.0);
 }

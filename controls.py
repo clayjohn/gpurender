@@ -60,7 +60,7 @@ class Orbit(Control):
     def setup(self):
         self.lookfrom = self.camera.lookfrom
         self.zoom = mag(self.lookfrom)
-        self.thetax = atan(self.lookfrom[0]/self.lookfrom[2])
+        self.thetax = atan(self.lookfrom[2]/self.lookfrom[0])
         dist = mag([self.lookfrom[0], 0, self.lookfrom[2]])
         self.thetay = atan(self.lookfrom[1]/dist)
         #calculate thetax and theta y
@@ -68,7 +68,7 @@ class Orbit(Control):
     def update(self):
         rval = self.mouseDown
         self.mouseDown = False
-        tempx = [sin(self.thetax), 0.0, cos(self.thetax)]
+        tempx = [cos(self.thetax), 0.0, sin(self.thetax)]
         tempy = [0.0, sin(self.thetay), 0.0]
         tempx = normalize(tempx)
         mag = cos(self.thetay)
@@ -82,8 +82,8 @@ class Orbit(Control):
 
     def mouse_drag(self, x, y, dx, dy, button, modifier):
         super(Orbit, self).mouse_drag(x, y, dx, dy, button, modifier)
-        self.thetax -= dx*0.01
-        self.thetay -= dy*0.01
+        self.thetax += dx*0.01
+        self.thetay += dy*0.01
         self.mouseDown = True
         #calculate position on floor circle
         #then calculate elevation
@@ -91,7 +91,7 @@ class Orbit(Control):
         #use basic vector manipulation for this
 
     def mouse_scroll(self, x, y, scroll_x, scroll_y):
-        self.zoom += scroll_y
+        self.zoom += scroll_y*self.zoom*0.1
         self.mouseDown = True
 
 def mag(a):

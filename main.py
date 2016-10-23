@@ -11,11 +11,11 @@ from controls import *
 from math import pi, cos, sqrt
 from random import random
 
-WIDTH = 400
-HEIGHT = 400
+WIDTH = 600
+HEIGHT = 600
 
-FB_WIDTH = 200# WIDTH
-FB_HEIGHT = 200# HEIGHT
+FB_WIDTH = 600# WIDTH
+FB_HEIGHT = 600# HEIGHT
 
 
 render_program = None
@@ -33,7 +33,7 @@ passes = 1
 start_time = time()
 
 # TODO save uniform locations of variables
-# TODO BVH for objects
+# TODO BVH for objects (not necessary for now)
 # TODO Store references to materials instead of unique materials
 # TODO remove the amount of uniforms
     ## pass as texture
@@ -41,8 +41,8 @@ start_time = time()
 
 def random_scene():
     global world
-    #world.add(Sphere((0, -1000, 0), 1000, [0, 0, 0], Lambertian((0.5, 0.5, 0.5))))
-    world.add(Plane((0, 0, 0), 5, (1, 1, 0.1), DiffuseLight((0.5, 0.5, 0.5))))
+    world.add(Sphere((0, -1000, 0), 1000, [0, 0, 0], Lambertian((0.5, 0.5, 0.5))))
+    #world.add(Plane((0, 0, 0), 5, (1, 1, 0.1), DiffuseLight((0.5, 0.5, 0.5))))
     for i in range(-8, 8, 2):
         for j in range(-8, 8, 2):
             choose_mat = random()
@@ -83,7 +83,6 @@ def update_labels():
 
 def draw():
     global framebuffer, targetbuffer, passes
-    #update_camera()
     if controls.update():
         refresh_buffer()
     render_to_texture()
@@ -143,7 +142,9 @@ def copy_texture_to_screen():
 
 def main():
     global window
-    window = pyglet.window.Window(WIDTH, HEIGHT)
+    window = pyglet.window.Window(WIDTH, HEIGHT, vsync=False)
+    
+    print("finished with window")
 
     global framebuffer
     framebuffer = Framebuffer(FB_WIDTH, FB_HEIGHT, WIDTH, HEIGHT)
@@ -151,12 +152,14 @@ def main():
     global targetbuffer
     targetbuffer = Framebuffer(FB_WIDTH, FB_HEIGHT, WIDTH, HEIGHT)
 
+    print("finished framebuffers")
     global render_program
     render_program = setup_render_program()
-
+    print('finished render program')
     global copy_program
     copy_program = setup_copy_program()
-
+    print('copy program setup')
+    print("making labels")
     global passes_label, time_label, fps_label
     passes_label = pyglet.text.Label("Passes: " + str(passes),
                           font_name='Times New Roman',
