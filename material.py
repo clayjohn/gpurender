@@ -69,4 +69,8 @@ class DiffuseLight(Material):
         super(DiffuseLight, self).__init__((1, 0, 0), (0, 1, 0), color, 0.0)
         self.mat = 4
 
+class Isotropic(Material):
+    def __init__(self, color):
+        super(Isotropic, self).__init__(color, (1, 1, 1), (0, 0, 0), 0.0)
+        self.mat = 5
 

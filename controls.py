@@ -1,5 +1,6 @@
 import pyglet
 from math import cos, sin, sqrt, acos, asin, atan
+from main import copy_texture_to_screen
 #this should be a wrapper so I canhave multiple different types of orbits that take the same input
 #but have a different output
 
@@ -17,6 +18,7 @@ class Control:
         window.on_mouse_release = self.mouse_release
         window.on_mouse_scroll = self.mouse_scroll
         self.camera = camera
+        self.save_frame = False
         self.setup()
 
     def setup(self):
@@ -28,10 +30,14 @@ class Control:
     def key_press(self, symbol, modifier):
         if self.debug:
             print("key press: "+ str(symbol))
+        if symbol == pyglet.window.key.P:
+            self.save_frame = True
         if symbol == pyglet.window.key.ESCAPE:
             pyglet.app.exit()
     
     def key_release(self, symbol, modifier):
+        if symbol == pyglet.window.key.P:
+            self.save_frame = False
         if self.debug:
             print("key release: "+ str(symbol))
 
@@ -83,7 +89,7 @@ class Orbit(Control):
     def mouse_drag(self, x, y, dx, dy, button, modifier):
         super(Orbit, self).mouse_drag(x, y, dx, dy, button, modifier)
         self.thetax += dx*0.01
-        self.thetay += dy*0.01
+        self.thetay -= dy*0.01
         self.mouseDown = True
         #calculate position on floor circle
         #then calculate elevation

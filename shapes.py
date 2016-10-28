@@ -20,6 +20,7 @@ class Hitable:
     rotation = []
     shape = 0
     material = None
+    volume = 0
     def __init__(self, *args):
         #for now take three arrays for args
         if len(args) >= 1:
@@ -56,6 +57,12 @@ class Hitable:
         name = "hitables["+str(i)+"].type"
         pyglet.gl.glUniform1i(pyglet.gl.glGetUniformLocation(pn, ctypes.create_string_buffer(name.encode('ascii'))), int(self.shape))
         self.material.update(i, pn)
+        ## update volume flag
+        name = "hitables["+str(i)+"].volume"
+        pyglet.gl.glUniform1i(pyglet.gl.glGetUniformLocation(pn, ctypes.create_string_buffer(name.encode('ascii'))), self.volume)
+        
+
+
 
 class Sphere(Hitable):
     def __init__(self, *args):
@@ -84,3 +91,8 @@ class Disk(Hitable):
     def __init__(self, *args):
         super(Disk, self).__init__(*args)
         self.shape = 5
+
+def ConstantMedium(s):
+    shape = s
+    shape.volume = 1
+    return shape

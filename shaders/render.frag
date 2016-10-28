@@ -1,4 +1,4 @@
-# version 130
+# version 330
 precision highp float;
 in vec2 fragPos;
 in vec4 fragColor;
@@ -19,6 +19,10 @@ const int DIFFUSE = 1;
 const int METAL = 2;
 const int DIALECTRIC = 3;
 const int LIGHT = 4;
+const int ISOTROPIC = 5;
+
+const int TRUE = 1;
+const int FALSE = 0;
 
 struct Ray {
   vec3 pos;
@@ -45,6 +49,7 @@ struct Hitable {
   float size;
   vec3 dir;
   int type;
+  int volume;
 };
 
 struct Camera {
@@ -60,11 +65,11 @@ struct Camera {
 
 uniform int NUM_OBJECTS;
 uniform int BVH_DEPTH;
-const int MAX_OBJECTS = 10;
+const int MAX_OBJECTS = 36;
 uniform Hitable hitables[MAX_OBJECTS];
 uniform Material materials[MAX_OBJECTS];
 uniform Camera camera;
-const int MAX_DEPTH = 5;
+const int MAX_DEPTH = 10;
 vec3 estack[MAX_DEPTH + 1];
 vec3 cstack[MAX_DEPTH + 1];
 
@@ -114,9 +119,32 @@ bool hit_sphere(Hitable s, Ray ray, float t_min, float t_max, inout Hit_record r
   return false;
 }
 
-bool hit_triangle(Hitable t, Ray ray, float t_min, float t_max, inout Hit_record rec) {
-  return false;
-}
+/*bool hit_triangle(Hitable t, Ray ray, float t_min, float t_max, inout Hit_record rec) {
+  vec3 perp = cross(t.dir, vec3(1.0, 0.0, 0.0));
+  vec3 a = t.pos + vec3();
+  vec3 b = t.pos + vec3();
+  vec3 c = t.pos + vec3();
+  float3 edge1 = b - a;
+	float3 edge2 = c - a;
+
+	float3 pvec = cross(ray.dir, edge2);
+	float det = dot(edge1, pvec);
+	if(det == 0.0) {
+		return false;
+  }
+	float inv_det = 1.0f / det;
+
+	float3 tvec = ray.pos - a;
+	out_bary1 = dot(tvec, pvec) * inv_det;
+
+	float3 qvec = cross(tvec, edge1);
+	out_bary2 = dot(d, qvec) * inv_det;
+	//out_lambda = dot(edge2, qvec) * inv_det;
+
+	bool hit = (out_bary1 >= 0.0 && out_bary2 >= 0.0 && (out_bary1 + out_bary2) <= 1.0);
+	return hit;
+
+}*/
 
 bool hit_disk(Hitable h, Ray ray, float t_min, float t_max, inout Hit_record rec) {
   float denom = dot(h.dir, ray.dir);
@@ -149,9 +177,20 @@ bool hit_plane(Hitable h, Ray ray, float t_min, float t_max, inout Hit_record re
     if (t<t_min || t>t_max) {
       return false;
     }
+    vec3 pos = ray.pos + ray.dir * t;
+    if (h.size != 0.0) {
+      if ((pos.yz-h.pos.yz).x>h.size || (pos.yz-h.pos.yz).x<-h.size || 
+          (pos.xy-h.pos.xy).x>h.size || (pos.xy-h.pos.xy).x<-h.size || 
+          (pos.xz-h.pos.xz).x>h.size || (pos.xz-h.pos.xz).x<-h.size || 
+          (pos.yz-h.pos.yz).y>h.size || (pos.yz-h.pos.yz).y<-h.size || 
+          (pos.xy-h.pos.xy).y>h.size || (pos.xy-h.pos.xy).y<-h.size || 
+          (pos.xz-h.pos.xz).y>h.size || (pos.xz-h.pos.xz).y<-h.size ) {
+        return false;
+      }
+    }
     if (t >= 0) {
       rec.t = t;
-      rec.p = ray.pos + ray.dir*t;
+      rec.p = pos;
       rec.normal = h.dir;
       return true;
     }  // you might want to allow an epsilon here too
@@ -159,8 +198,68 @@ bool hit_plane(Hitable h, Ray ray, float t_min, float t_max, inout Hit_record re
   return false;
 }
 
-bool hit_aabb(Hitable h, Ray ray, float t_min, float t_max, inout Hit_record rec) {
-  
+bool hit_cube(Hitable h, Ray ray, float t_min, float t_max, inout Hit_record rec) {
+  //use six planes may be horrible but should work
+  vec3 planes[6] = vec3[6](vec3(1.0, 0.0, 0.0), vec3(-1.0, 0.0, 0.0), 
+                           vec3(0.0, 1.0, 0.0), vec3(0.0, -1.0, 0.0), 
+                           vec3(0.0, 0.0, 1.0), vec3(0.0, 0.0, -1.0));
+  Hitable temp = Hitable(h.pos, h.size, vec3(0.0, 1.0, 0.0), PLANE, 0);
+  Hit_record temp_rec = rec;
+  float closest = t_max;
+  bool hit_anything = false;
+  for (int i = 0; i<6;i++) {
+    temp.pos = h.pos + planes[i] * h.size;
+    temp.dir = planes[i];
+    if (hit_plane(temp, ray, t_min, closest, temp_rec)) {
+      closest = temp_rec.t;
+      hit_anything = true;
+    } //do this for every plane
+  }
+  if (hit_anything) {
+    rec = temp_rec;
+  }
+  return hit_anything;
+}
+
+bool hit(const Hitable s, const Ray ray, const float t_min, float t_max, inout Hit_record rec) {
+  if (s.type == SPHERE) {
+    return hit_sphere(s, ray, t_min, t_max, rec);
+  } else if (s.type == PLANE) {
+    return hit_plane(s, ray, t_min, t_max, rec);
+  } else if (s.type == DISK) {
+    return hit_disk(s, ray, t_min, t_max, rec);
+  } else if (s.type == CUBE) {
+    return hit_cube(s, ray, t_min, t_max, rec);
+  }
+  return false;
+}
+
+bool hit_volume(const Hitable h,const Ray ray,const float t_min, float t_max, inout Hit_record rec) {
+  Hit_record rec1, rec2;
+  float inf = 10000.0;
+  if (hit(h, ray, -inf, inf, rec1)) {
+    if (hit(h, ray, rec1.t+0.001, inf, rec2)) {
+      rec1.t = max(rec1.t, t_min);
+      rec2.t = min(rec2.t, t_max);
+      if (rec1.t >= rec2.t) {
+        return false;
+      }
+      rec1.t = max(rec1.t, 0.0);
+      float distance_inside_boundary = (rec2.t-rec1.t)*length(ray.dir);
+      // TODO change the 0.01 to a passed in parameter
+      //do this by changing volume to density
+      //where a density of one (or arbitrary number) flips to a solid structure
+      //100.0 should be 1.0/h.density
+      float hit_distance = -(1.0) * log(hash31(vec3(rec2.t, rec1.t, rec2.t*37.91+rec1.t*12.53)));
+      if (hit_distance < distance_inside_boundary) {
+        rec.t = rec1.t + hit_distance / length(ray.dir);
+        rec.p = ray.pos + ray.dir * rec.t;
+        rec.normal = vec3(1.0, 0.0, 0.0);
+        return true;
+      }
+    }
+  }
+
   return false;
 }
 
@@ -181,7 +280,7 @@ bool refracter(vec3 v, vec3 n, float ni_over_nt, inout vec3 refracted) {
     return false;
 }
 
-bool scatter(Ray r, Hit_record rec, inout vec3 attenuation, inout Ray scattered){
+bool scatter(const Ray r,const Hit_record rec, inout vec3 attenuation, inout Ray scattered){
   if (rec.material.type == LIGHT) {
     return false;
   }
@@ -231,42 +330,37 @@ bool scatter(Ray r, Hit_record rec, inout vec3 attenuation, inout Ray scattered)
     } 
     return true;
   }
+  else if (rec.material.type == ISOTROPIC) {
+    scattered = Ray(rec.p, hash33(rec.p));
+    attenuation = rec.material.albedo;
+    return true;
+  }
 }
 
-bool hit_world(Ray ray, float t_min, float t_max, inout Hit_record rec) {
+bool hit_world(const Ray ray,const float t_min, float t_max, inout Hit_record rec) {
   Hit_record temp_rec;
   bool hit_anything = false;
   float closest_so_far = t_max;
-
+  
   for (int i = 0;i<MAX_OBJECTS;i++) {
     if (i < NUM_OBJECTS){
-      if (hitables[i].type == SPHERE) {
-        if (hit_sphere(hitables[i], ray, t_min, closest_so_far, temp_rec)) {
+      if (hitables[i].volume == TRUE) {
+        if (hit_volume(hitables[i], ray, t_min, closest_so_far, temp_rec)) {
           closest_so_far = temp_rec.t;
           rec = temp_rec;
           rec.material = materials[i];
           hit_anything = true;
         }
       }
-      else if (hitables[i].type == PLANE) {
-        if (hit_plane(hitables[i], ray, t_min, closest_so_far, temp_rec)) {
-          closest_so_far = temp_rec.t;
-          rec = temp_rec;
-          rec.material = materials[i];
-          hit_anything = true;
-        }
-      }
-      else if (hitables[i].type == DISK) {
-        if (hit_disk(hitables[i], ray, t_min, closest_so_far, temp_rec)) {
-          closest_so_far = temp_rec.t;
-          rec = temp_rec;
-          rec.material = materials[i];
-          hit_anything = true;
-        }
-      }
+      else if (hit(hitables[i], ray, t_min, closest_so_far, temp_rec)) {
+        closest_so_far = temp_rec.t;
+        rec = temp_rec;
+        rec.material = materials[i];
+        hit_anything = true;
+      }  
     }
   }
-   return hit_anything;
+  return hit_anything;
 }
 
 vec3 emitter(Hit_record rec){
@@ -291,7 +385,7 @@ bool color(inout Ray r, inout vec3 col, inout Hit_record rec, in int depth) {
     vec3 unit_direction = normalize(r.dir);
     float t = 0.5*(unit_direction.y+1.0);
     col *= mix(vec3(1.0), vec3(0.5, 0.7, 1.0), t);
-    col *= 0.0;
+    //col *= 0.0;
     return false;
   }
 }
@@ -303,10 +397,13 @@ vec2 antia(vec2 x, float t) {
   return fract(vec2((p.x+p.y)*p.z, (p.x+p.z)*p.y));
 }
 
+
+
 Ray get_ray(vec2 uv) {
   vec2 rd = camera.lens_radius * hash32(vec3(uv, 1.0/time));
   vec3 offset = camera.u*rd.x + camera.v*rd.y;
-  return Ray(camera.origin + offset, camera.corner + uv.x * camera.width + uv.y*camera.height - camera.origin - offset);
+  vec3 dir = camera.corner + uv.x * camera.width + uv.y*camera.height - camera.origin - offset;
+  return Ray(camera.origin + offset, dir);
 }
 
 vec3 cast_ray() {
@@ -345,6 +442,7 @@ void main() {
 
 
 /*
+   triangle(vec3, a, vec3 b, vec3 c, ray.dir, ray.orign)
    Triangle
    float3 edge1 = b - a;
 	float3 edge2 = c - a;

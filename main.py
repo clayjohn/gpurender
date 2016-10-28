@@ -11,11 +11,11 @@ from controls import *
 from math import pi, cos, sqrt
 from random import random
 
-WIDTH = 600
-HEIGHT = 600
+WIDTH = 400
+HEIGHT = 400
 
-FB_WIDTH = 600# WIDTH
-FB_HEIGHT = 600# HEIGHT
+FB_WIDTH = 200# WIDTH
+FB_HEIGHT = 200# HEIGHT
 
 
 render_program = None
@@ -28,8 +28,9 @@ controls = None
 passes_label = None
 time_label = None
 fps_label = None
+texture_buffer = None
 
-passes = 1
+passes = 0
 start_time = time()
 
 # TODO save uniform locations of variables
@@ -37,7 +38,29 @@ start_time = time()
 # TODO Store references to materials instead of unique materials
 # TODO remove the amount of uniforms
     ## pass as texture
+# TODO add triangles (maybe similar to quad is easiest)
+# TODO add transformations
+# TODO density changes
+# TODO global fog
+# TODO Isosurfaces??
+    ## inside a bounding volume of course
+# TODO clean up object creation (remove unnecessary fields)
+# TODO figure out plane size issue
 
+           
+def setup_data_buffer(indata):
+    PIXEL = pyglet.gl.GL_FLOAT * 4
+    data = (PIXEL*1)((0.9, 0.4, 0.2, 1.0))
+    name = pyglet.gl.GLuint(0)
+    pyglet.gl.glGenBuffers(1, ctypes.byref(name))
+    pyglet.gl.glBindBuffer(pyglet.gl.GL_TEXTURE_BUFFER, name)
+    pyglet.gl.glBufferData(pyglet.gl.GL_TEXTURE_BUFFER, ctypes.sizeof(data), data, pyglet.gl.GL_STATIC_DRAW)
+
+    texture = BufferTexture()
+    with texture:
+        pyglet.gl.glTexBuffer(pyglet.gl.GL_TEXTURE_BUFFER, pyglet.gl.GL_RGBA32F, name)
+    pyglet.gl.glBindBuffer(pyglet.gl.GL_TEXTURE_BUFFER, 0)
+    return texture
 
 def random_scene():
     global world
@@ -69,7 +92,7 @@ def refresh_buffer():
         gl.glClearColor(0.0, 0.0, 0.0, 1.0)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
 
-    passes = 1
+    passes = 0
     start_time = time()
 
 def update_labels():
@@ -82,14 +105,18 @@ def update_labels():
     fps_label.draw()
 
 def draw():
-    global framebuffer, targetbuffer, passes
+    global framebuffer, targetbuffer, passes, controls
     if controls.update():
         refresh_buffer()
     render_to_texture()
-    copy_texture_to_screen()
     passes += 1
+    copy_texture_to_screen()
     framebuffer, targetbuffer = targetbuffer, framebuffer
-    update_labels()
+    #if not controls.save_frame:
+        #update_labels()
+    #else:
+        #pyglet.image.get_buffer_manager().get_color_buffer().save('screenshot.png')
+        #controls.save_frame = False
 
 def render_to_texture():
     # select the target to draw into
@@ -111,11 +138,11 @@ def render_to_texture():
 
         # draw using the vertex array for vertex information
         with render_program, targetbuffer.rendered_texture:
-            pyglet.gl.glUniform2f(pyglet.gl.glGetUniformLocation(render_program.program_name, ctypes.create_string_buffer('resolution'.encode('ascii'))), FB_WIDTH, FB_HEIGHT)
-            pyglet.gl.glUniform1f(pyglet.gl.glGetUniformLocation(render_program.program_name, ctypes.create_string_buffer('time'.encode('ascii'))), (time()-start_time))
-            world.update(render_program.program_name)
-            camera.update(render_program.program_name)
-            gl.glDrawArrays(gl.GL_TRIANGLES, 0, 6)
+                pyglet.gl.glUniform2f(pyglet.gl.glGetUniformLocation(render_program.program_name, ctypes.create_string_buffer('resolution'.encode('ascii'))), FB_WIDTH, FB_HEIGHT)
+                pyglet.gl.glUniform1f(pyglet.gl.glGetUniformLocation(render_program.program_name, ctypes.create_string_buffer('time'.encode('ascii'))), (time()-start_time))
+                world.update(render_program.program_name)
+                camera.update(render_program.program_name)
+                gl.glDrawArrays(gl.GL_TRIANGLES, 0, 6)
 
 
 def copy_texture_to_screen():
@@ -133,16 +160,17 @@ def copy_texture_to_screen():
         ((-1.0, -1.0), (1.0, 1.0))])
 
     # draw
-    with copy_program, framebuffer.rendered_texture:
+    with copy_program, framebuffer.rendered_texture, texture_buffer:
         # copy over uniforms
         # TODO make more complex uniform objects so we dont need to search up location
-        pyglet.gl.glUniform1f(pyglet.gl.glGetUniformLocation(copy_program.program_name, ctypes.create_string_buffer('passes'.encode('ascii'))), passes)
-        gl.glDrawArrays(gl.GL_TRIANGLES, 0, 6)
+            pyglet.gl.glUniform1f(pyglet.gl.glGetUniformLocation(copy_program.program_name, ctypes.create_string_buffer('passes'.encode('ascii'))), passes)
+            gl.glDrawArrays(gl.GL_TRIANGLES, 0, 6)
 
 
 def main():
     global window
-    window = pyglet.window.Window(WIDTH, HEIGHT, vsync=False)
+    config = pyglet.gl.Config(major_version = 3, minor_version = 3)
+    window = pyglet.window.Window(WIDTH, HEIGHT, vsync=False, config = config)
     
     print("finished with window")
 
@@ -151,6 +179,9 @@ def main():
 
     global targetbuffer
     targetbuffer = Framebuffer(FB_WIDTH, FB_HEIGHT, WIDTH, HEIGHT)
+
+    global texture_buffer
+    texture_buffer = BufferTexture()
 
     print("finished framebuffers")
     global render_program
@@ -161,26 +192,26 @@ def main():
     print('copy program setup')
     print("making labels")
     global passes_label, time_label, fps_label
-    passes_label = pyglet.text.Label("Passes: " + str(passes),
-                          font_name='Times New Roman',
-                          font_size=12,
-                          x=6, y=window.height-6,
-                          anchor_x='left', anchor_y='top')
-    time_label = pyglet.text.Label("Time: " + str(time()-start_time),
-                          font_name='Times New Roman',
-                          font_size=12,
-                          x=6, y=window.height-24,
-                          anchor_x='left', anchor_y='top')
-
-    fps_label = pyglet.text.Label("FPS: : " + str(passes),
-                          font_name='Times New Roman',
-                          font_size=12,
-                          x=6, y=window.height-42,
-                          anchor_x='left', anchor_y='top')
+    #passes_label = pyglet.text.Label("Passes: " + str(passes),
+    #                      font_name='Times New Roman',
+    #                      font_size=12,
+    #                      x=6, y=window.height-6,
+    #                      anchor_x='left', anchor_y='top')
+    #time_label = pyglet.text.Label("Time: " + str(time()-start_time),
+    #                      font_name='Times New Roman',
+    #                      font_size=12,
+    #                      x=6, y=window.height-24,
+    #                      anchor_x='left', anchor_y='top')
+#
+    #fps_label = pyglet.text.Label("FPS: : " + str(passes),
+    #                      font_name='Times New Roman',
+    #                      font_size=12,
+    #                      x=6, y=window.height-42,
+    #                      anchor_x='left', anchor_y='top')
     
     global camera
-    lookfrom = [278, 278, -800]
-    lookat = [278, 278, 0]
+    lookfrom = [278, 278, -800]#[1, 3, -8]#
+    lookat = [278, 278, 0]#[0, 0, 0]#
     #dist = [lookfrom[0]-lookat[0], lookfrom[1]-lookat[1], lookfrom[2]-lookat[2]]
     #dist = sqrt(dist[0]*dist[0]+dist[1]*dist[1]+dist[2]*dist[2])
     dist = 10.0
@@ -193,19 +224,43 @@ def main():
     #set up the world
     #random_scene()
     global world
-    world.add(Disk((0, 278, 278),555, (1, 0, 0), Lambertian((0.65, 0.05, 0.05))))
-    world.add(Disk((555, 278, 278),555, (-1, 0, 0), Lambertian((0.12, 0.45, 0.15))))
-    world.add(Disk((278, 0, 278),555, (0, 1, 0), Lambertian((0.73, 0.73, 0.73))))
-    world.add(Disk((278, 554, 278),99, (0, -1, 0), DiffuseLight((15, 15, 15))))
-    world.add(Disk((278, 555, 278),555, (0, -1, 0), Lambertian((0.73, 0.73, 0.73))))
-    world.add(Disk((278, 278, 555),555, (0, 0, -1), Lambertian((0.73, 0.73, 0.73))))
-    world.add(Sphere((228, 100, 128), 100, (0, 0, 0), Dialectric(1.5)))
-
+    world.add(Plane((0, 278, 278),278, (1, 0, 0), Lambertian((0.65, 0.05, 0.05))))
+    world.add(Plane((555, 278, 278),278, (-1, 0, 0), Lambertian((0.12, 0.45, 0.15))))
+    world.add(Plane((278, 0, 278),278, (0, 1, 0), Lambertian((0.73, 0.73, 0.73))))
+    world.add(Plane((278, 554, 278),99, (0, -1, 0), DiffuseLight((15, 15, 15))))
+    world.add(Plane((278, 555, 278),278, (0, -1, 0), Lambertian((0.73, 0.73, 0.73))))
+    world.add(Plane((278, 278, 555),278, (0, 0, -1), Lambertian((0.73, 0.73, 0.73))))
+    world.add(ConstantMedium(Cube((215, 80, 150), 80, (0, 0, 0), Isotropic((0.9, 0.2, 0.4)))))
+    world.add((Cube((215, 80, 150), 80, (0, 0, 0), Dialectric(1.5))))
+    world.add(ConstantMedium(Sphere((350, 80, 380), 80, (0, 0, 0), Isotropic((0.2, 0.4, 0.9)))))
+    world.add((Sphere((350, 80, 380), 80, (0, 0, 0), Dialectric(1.5))))
+    #world.add(Plane((0, 0, 0), 0, (0, 1, 0), Lambertian((0.45, 0.43, 0.39))))
+    #world.add(Sphere((1, 1, 1), 1, (0, 1, 0), Metal((0.7, 0.7, 0.7), 0.1)))
+    #world.add(ConstantMedium(Sphere((-1, 1, 0), 1, (0, 1, 0), Isotropic((0.7, 0.2, 0.2)))))
+    #world.add(Sphere((-1, 1, 0), 1, (0, 1, 0), Dialectric(1.5)))
+    #world.add(ConstantMedium(Sphere((-1, 2.5, 0), 0.5, (0, 1, 0), Isotropic((0.7, 0.2, 0.2)))))
+    #world.add(Sphere((-1, 2.5, 0), 0.5, (0, 1, 0), Dialectric(1.5)))
+    #world.add(ConstantMedium(Sphere((-1, 3.25, 0), 0.25, (0, 1, 0), Isotropic((0.7, 0.2, 0.2)))))
+    #world.add(Sphere((-1, 3.25, 0), 0.25, (0, 1, 0), Dialectric(1.5)))
+    #world.add(Sphere((0, 9, 0), 4.5, (0,0,0), DiffuseLight((5, 5, 5))))
+    #world.add(ConstantMedium(Plane((1, 1, 0), 1, (-1, 0, 0), Isotropic((0.5, 0.5, 0.5)))))
+    #world.add((Plane((1, 1, 0), 1, (-1, 1, 0), Dialectric(1.5))))
+    #world.add((Plane((0, 1, 0), 1, (-1, 0, 0), Dialectric(1.5))))
+    #world.add((Plane((2, 1, 0), 1, (-1, 0, 0), Dialectric(1.5))))
+    #world.add((Plane((1, 2, 0), 1, (0, 1, 0), Dialectric(1.5))))
 
     print('OpenGL Version {}'.format(window.context.get_info().get_version()))
     window.on_draw = draw
-    pyglet.clock.schedule_interval(lambda dt: None, 0.01)
-    pyglet.app.run()
+    #cannot use pyglets text drawing if this is not used
+    #but also cannot use this with opengl 3.3
+    #pyglet.clock.schedule_interval(lambda dt: None, 0.01)
+    #pyglet.app.run()
+    #custom main loop to avoid compatibility mode
+    i = 0
+    while (i < 100):
+        i += 1
+        draw()
+        window.flip()
 
 
 if __name__ == '__main__':

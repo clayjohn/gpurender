@@ -163,6 +163,15 @@ class Texture:
     def __exit__(self, *unused):
         gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
 
+class BufferTexture(Texture):
+    def __enter__(self):
+        gl.glActiveTexture(gl.GL_TEXTURE1)
+        gl.glBindTexture(gl.GL_TEXTURE_BUFFER, self.name)
+
+    def __exit__(self, *unused):
+        gl.glActiveTexture(gl.GL_TEXTURE0)
+        gl.glBindTexture(gl.GL_TEXTURE_BUFFER, 0)
+
 
 class Framebuffer:
     def __init__(self, width, height, wwidth, wheight):
